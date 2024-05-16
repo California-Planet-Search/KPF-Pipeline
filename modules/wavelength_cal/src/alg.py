@@ -140,7 +140,19 @@ class WaveCalibration:
 
             # masked_calflux = self.mask_array_neid(calflux, n_orders)
             masked_calflux = calflux # TODO: fix
+            all_x, all_y = [], []
+            for order_num in order_list:
+            	order_flux = calflux[order_num, :]
+            	rough_wls_order = rough_wls[order_num, :]
+            	n_pixels = len(order_flux)
 
+            	x, y = self.collect_xy(order_flux, rough_wls_order, n_pixels)
+            	all_x.extend(x)
+            	all_y.extend(y)
+        
+        	all_x = np.array(all_x)
+        	all_y = np.array(all_y)
+	
             # perform wavelength calibration
             poly_soln, wls_and_pixels, orderlet_dict = self.fit_many_orders(
                 masked_calflux, order_list, rough_wls=rough_wls, 
@@ -1631,93 +1643,6 @@ class WaveCalibration:
             plt.close()
 
         return rel_precision_cm_s, abs_precision_cm_s
-
-    def mask_array_neid(self, calflux, n_orders):
-        """ Creates ad-hoc mask to remove bad pixel regions specific to order. 
-        For NEID testing. 
-        Args:
-            calflux (np.array): (N_orders x N_pixels) flux array to be masked
-            n_orders (np.array): number of orders to be masked
-        Returns:
-            np.array: masked flux array
-        """
-        mask = np.zeros((2,n_orders),dtype=int)
-        
-        mask_order_lims = {
-        50: (430, 457),
-        51: (432, 459),
-        52: (434, 461),
-        53: (435, 463),
-        54: (437, 466),
-        55: (432, 468),
-        56: (432, 471),
-        57: (433, 464),
-        58: (434, 464),
-        59: (436, 466),
-        60: (437, 470),
-        61: (430, 470),
-        62: (430, 472),
-        63: (433, 474),
-        64: (433, 464),
-        65: (435, 468),
-        66: (437, 468),
-        67: (432, 465),
-        68: (432, 463),
-        69: (436, 466),
-        70: (437, 470),
-        71: (433, 460),
-        72: (435, 458),
-        73: (437, 457),
-        74: (437, 455),
-        75: (434, 459),
-        76: (433, 463),
-        77: (437, 457),
-        78: (437, 457),
-        79: (430, 461),
-        80: (430, 461),
-        81: (430, 465),
-        82: (433, 456),
-        83: (435, 458),
-        84: (433, 458),
-        85: (435, 458),
-        86: (437, 458),
-        87: (437, 458),
-        88: (429, 461),
-        89: (429, 462),
-        90: (429, 468),
-        91: (429, 468),
-        92: (433, 478),
-        93: (433, 475),
-        94: (437, 480),
-        95: (437, 480),
-        96: (437, 482),
-        97: (425, 485),
-        98: (425, 485),
-        99: (425, 485),
-        100: (425, 485),
-        101: (425, 485),
-        102: (425, 485),
-        103: (425, 490),
-        104: (425, 490),
-        }
-        
-        for i in np.arange(n_orders):
-            mask[0, i] = mask_order_lims[i + self.min_order][0]
-            mask[1, i] = mask_order_lims[i + self.min_order][1]
-
-        # zero out bad pixels
-            j = mask[0,i]
-            k = mask[1,i]
-            calflux[i + self.min_order, j:k] = 0
-
-        # orders 71, 75 & 86 have some additional weird stuff going on
-        calflux[71, 1550:1560] = 0
-        calflux[75, 1930:1940] = 0
-        calflux[75, 6360:6366] = 0
-        calflux[86, 1930:1940] = 0
-        
-        return calflux
-
     
     def comb_gen(self, f0, f_rep):
         """ Computes wavelengths of LFC modes using the comb equation
