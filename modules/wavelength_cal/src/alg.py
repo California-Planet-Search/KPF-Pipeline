@@ -540,6 +540,50 @@ class WaveCalibration:
 
         return poly_soln_final_array, wavelengths_and_pixels, orderlet_dict
 
+    def fit_all_orders(
+        self, all_x, all_y, rough_wls=None, comb_lines_angstrom=None,
+        expected_peak_locs=None, peak_wavelengths_ang=None, our_wavelength_solution_for_order=None, plt_path=None, print_update=False):
+        
+        leg_out = Legendre.fit(all_x, all_y, self.fit_order)
+        poly_soln_final = leg_out(np.arange(len(all_x)))
+        
+        if plt_path is not None:
+            fig, ax = plt.subplots(2, 1, figsize=(12, 5))
+            ax[0].plot(np.arange(len(all_x)), all_y - poly_soln_final, color='grey', alpha=0.5)
+            pixel_sizes = all_y[1:] - all_y[:-1]
+            ax[1].plot(np.arange(len(all_x) - 1), (all_y[:-1] - poly_soln_final[:-1]) / pixel_sizes, color='grey', alpha=0.5)
+            ax[0].set_title('Derived WLS - Combined WLS')
+            ax[0].set_xlabel('Pixel')
+            ax[0].set_ylabel('[$\\rm \AA$]')
+            ax[1].set_xlabel('Pixel')
+            ax[1].set_ylabel('[Pixel]')
+            plt.tight_layout()
+            plt.savefig('{}/all_wls.png'.format(plt_path), dpi=250)
+
+        return poly_soln_final, all_y, {}    
+		
+    def collect_xy(self, order_flux, rough_wls_order, n_pixels, cal_flux, order_list, rough_wls=None, comb_lines_angstrom=None,
+        expected_peak_locs=None,peak_wavelengths_ang=None, our_wavelength_solution_for_order=None, plt_path=None, print_update=False)
+	"""
+        Collects x and y values of peaks for a single order. This will be used to fit a 2D WLS. 
+
+        Args:
+            order_flux (np.array): Flux values for the order.
+            rough_wls_order (np.array): Rough wavelength values for the order.
+            n_pixels (int): Number of pixels in the order.
+
+        Returns:
+            tuple: x and y values of peaks for the order.
+        """    
+        x, y = [], []
+	polynomial_wls, leg_out, fitted_peak_pixels, wls = self.fit_polynomial(
+                    wls, rough_wls_order, peak_wavelengths_ang, order_list, n_pixels, fitted_peak_pixels, peak_heights=peak_heights,
+                    plot_path=order_plt_path, fit_iterations=self.fit_iterations,
+                    sigma_clip=self.sigma_clip)    
+        x.extend(fitted_peak_pixels)
+        y.extend(wls)
+        return x, y		
+	    
     def remove_orders(self,step=1):
         """Removes bad orders from order list if between min and max orders to test.
         Args:
@@ -1584,7 +1628,7 @@ class WaveCalibration:
         else:
             raise ValueError('Only set up to perform Legendre fits currently! Please set fit_type to "Legendre"')
 
-        return our_wavelength_solution_for_order, leg_out
+        return our_wavelength_solution_for_order, leg_out, x, y
 
     def calculate_rv_precision(
         self, fitted_peak_pixels, wls, leg_out, rough_wls, our_wavelength_solution_for_order, rough_wls_order, 
