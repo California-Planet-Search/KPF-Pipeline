@@ -389,6 +389,7 @@ class KPFPipeCronBase:
             [ ! -e /data/2D/{self.procdate} ] && ln -s /data_workspace/2D/{self.procdate} /data/2D/{self.procdate}; 
             [ ! -e /data/masters ] && ln -s /masters /data/masters; 
             [ ! -e /data/reference_fits ] && ln -s /data_root/reference_fits /data/reference_fits; 
+            [ ! -e /data/reference ] && ln -s /data_root/reference /data/reference; 
             """
 
         return symlink_str
@@ -399,6 +400,7 @@ class KPFPipeCronBase:
             mkdir -p /data/logs/watch/{self.procdate};
             mkdir -p /data/L1/{self.procdate};
             mkdir -p /data/L2/{self.procdate};
+            mkdir -p /data/QLP/{self.procdate}
         """
 
         return mk_dir_str

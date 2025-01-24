@@ -23,6 +23,7 @@ class KPFPipeQuickLook(KPFPipeCronBase):
         # dial back the ncpu since it is running at night with the
         # Nightly Watch Pipeline
         self.ncpu = 4
+        # self.ncpu = 1
 
         # exit after 23.5 hours,  start 1pm UT to 00:30 UT (next day)
         if not self.exit_timer:
@@ -31,6 +32,7 @@ class KPFPipeQuickLook(KPFPipeCronBase):
     def set_recipe(self):
 
         # set the recipe and config file
+        # self.recipe = 'recipes/keck_quicklook_watch.recipe'
         self.recipe = 'recipes/quicklook_watch.recipe'
         self.config = 'configs/keck_quicklook_watch.cfg'
 
@@ -53,10 +55,12 @@ class KPFPipeQuickLook(KPFPipeCronBase):
 
             # set-up the pipeline
             make init >> {self.stdout_log} 2>&1;
-    
+            
+            python /code/KPF-Pipeline/cronjobs/keck_slow_touch.py --date {self.procdate} --fits /data/{self.level}/ --log /data/logs/ >> {self.stdout_log} &
+
             # run the pipeline for all data in the directory
             kpf --watch /data/{self.level}/{self.procdate}/ --ncpus={self.ncpu} -r {self.recipe} -c {self.config} >> {self.stdout_log} 2>&1;
-            
+
             """
 
     def define_docker_cmd(self):
