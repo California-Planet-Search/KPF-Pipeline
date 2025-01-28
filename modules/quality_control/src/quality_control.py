@@ -662,6 +662,19 @@ class QCDefinitions:
         self.db_columns[name26] = None
         self.fits_keyword_fail_value[name26] = 0
 
+        name27 = 'compare_wave_to_master'
+        self.names.append(name27)
+        self.descriptions[name27] = 'Wavelengths <1A away from master L1.'
+        self.kpf_data_levels[name27] = ['L1']
+        self.data_types[name27] = 'int'
+        self.spectrum_types[name27] = ['all']
+        self.master_types[name27] = ['all']
+        self.required_data_products[name27] = []
+        self.fits_keywords[name27] = 'CMPWAV'
+        self.fits_comments[name27] = 'QC: wave sol < 1A vs. master L1'
+        self.db_columns[name27] = None
+        self.fits_keyword_fail_value[name27] = 0
+
         # Integrity checks
         if len(self.names) != len(self.kpf_data_levels):
             raise ValueError("Length of kpf_data_levels list does not equal number of entries in descriptions dictionary.")
@@ -2228,7 +2241,81 @@ class QCL1(QC):
 
         return QC_pass
 
+    def compare_wave_to_master(self, master_L1=None, threshold=1.0, debug=False):
+        """
+        Compare the wavelength solutions of this L1 file (self.kpf_object) to a 
+        master L1 file. For each wavelength pixel in each orderlet, 
+        check that abs(L1_wave - master_wave) < threshold Angstroms.
 
+        Parameters
+        ----------
+        master_L1 : KPF1 object or None
+            A KPF1 object for the master wave solutions. If None, this method 
+            cannot run and returns True by default (you can decide the behavior).
+        threshold : float
+            The maximum allowed difference in Angstroms for each pixel 
+            (default = 1.0).
+        debug : bool
+            If True, prints extra debugging information.
+
+        Returns
+        -------
+        QC_pass : bool
+            True if all differences are < threshold for every pixel in 
+            every order/trace. False otherwise.
+        """
+
+        # If no master file is provided, decide how you want to handle that:
+        if master_L1 is None:
+            if debug:
+                print("No master L1 was provided; skipping wave comparison.")
+            return True
+
+        # Define the L1 wave extensions to compare
+        wave_extensions = [
+            "GREEN_SCI_WAVE1", "GREEN_SCI_WAVE2", "GREEN_SCI_WAVE3", 
+            "RED_SCI_WAVE1",   "RED_SCI_WAVE2",   "RED_SCI_WAVE3",
+        ]
+        
+        # For convenience, store the local L1 object:
+        L1_test = self.kpf_object  
+
+        QC_pass = True  # assume success unless proven otherwise
+
+        for ext in wave_extensions:
+            # Make sure both files actually have this extension
+            if ext not in L1_test.extensions or ext not in master_L1.extensions:
+                if debug:
+                    print(f"Extension {ext} missing in one of the L1 files.")
+                QC_pass = False
+                continue
+
+            # Grab the wave arrays from both files
+            wave_test   = L1_test[ext].data  # shape: (n_orders, 4080)
+            wave_master = master_L1[ext].data
+
+            # Quick shape check:
+            if wave_test.shape != wave_master.shape:
+                if debug:
+                    print(f"Shape mismatch in extension {ext}: {wave_test.shape} vs {wave_master.shape}")
+                QC_pass = False
+                continue
+
+            # Compute absolute differences
+            diff = np.abs(wave_test - wave_master)
+
+            # Check if any difference exceeds threshold
+            if np.any(diff > threshold):
+                QC_pass = False
+                if debug:
+                    # Possibly identify which order/pixel is out of tolerance
+                    bad_count = np.sum(diff > threshold)
+                    max_diff  = np.max(diff)
+                    print(f"Wave differences exceed {threshold} Å in {ext}.")
+                    print(f"Number of out-of-tolerance pixels: {bad_count}")
+                    print(f"Max difference found: {max_diff:.3f} Å")
+
+        return QC_pass
 #####################################################################
 
 class QCL2(QC):
